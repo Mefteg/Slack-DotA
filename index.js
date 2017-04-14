@@ -82,7 +82,7 @@ function initTheBot(promise) {
     RTM.on(RTM_EVENTS.MESSAGE, function handleRtmMessage(message) {
         var parsedText = ParseText(message.text);
         if (parsedText.length > 0) {
-            RTM.sendMessage(parsedText, CHANNELS[BOT_CHANNEL]);
+            RTM.sendMessage(parsedText, message.channel);
         }
     });
 }
