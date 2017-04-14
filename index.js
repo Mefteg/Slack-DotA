@@ -137,10 +137,12 @@ function HttpsGet(url, promise) {
             let parsedData = {};
             try {
                 parsedData = JSON.parse(rawData);
-            } catch (e) {
-                console.error(e.message);
-            } finally {
                 promise(null, parsedData);
+            } catch (e) {
+                if (DEBUG) {
+                    console.error("Parsing failed. Data: " + rawData);
+                }
+                promise(e);
             }
         })
     }).on('error', promise);
