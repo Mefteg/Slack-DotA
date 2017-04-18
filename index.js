@@ -7,6 +7,8 @@ var https = require('https');
 var array = require('mout/array');
 var string = require('mout/string');
 
+var env = require('node-env-file');
+
 var RtmClient = require('@slack/client').RtmClient;
 var WebClient = require('@slack/client').WebClient;
 var RTM_CLIENT_EVENTS = require('@slack/client').CLIENT_EVENTS.RTM;
@@ -15,6 +17,8 @@ var RTM_EVENTS = require('@slack/client').RTM_EVENTS;
 /* ########################################################################## */
 
 const DEBUG = false;
+
+env(__dirname + '/.env', {overwrite: true});
 
 const BOT_TOKEN = process.env.SLACK_TOKEN || '';;
 
