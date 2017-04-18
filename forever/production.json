@@ -1,0 +1,6 @@
+{
+    "uid": "slack-dota",
+    "append": true,
+    "watch": true,
+    "script": "index.js"
+}
