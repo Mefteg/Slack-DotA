@@ -185,7 +185,7 @@ function CreateMessageUserLastMatch(user) {
 }
 
 function ParseText(text) {
-    if (text.length < 2) {
+    if (text == null || text.length < 2) {
         return "";
     }
 
