@@ -16,9 +16,11 @@ var RTM_EVENTS = require('@slack/client').RTM_EVENTS;
 
 /* ########################################################################## */
 
-const DEBUG = false;
+env(__dirname + '/.env', {overwrite: true}); // get env variables
 
-env(__dirname + '/.env', {overwrite: true});
+/* ########################################################################## */
+
+const DEBUG = true;
 
 const BOT_TOKEN = process.env.SLACK_TOKEN || '';;
 
@@ -95,34 +97,50 @@ function startTheBot() {
     RTM.start();
 
     //start the loop
-    setTimeout(loopTheBot, 5000);
+    setTimeout(loopTheBot, 1000);
 }
 
 function loopTheBot() {
-    array.forEach(USERS, function(user, key, arr) {
-        GetDotaLastMatchForUserId(user.id, function(err, data) {
-            if (err) {
-                console.error("Error: " + err);
-                return;
+    GetDotaLastMatchForUsers_Recursive(USERS, 0, [], function(err, data) {
+        if (err) {
+            console.error("Error: " + err);
+            return;
+        }
+
+        var isAllowedToSendMessage = USERS[0].last_match != null;
+
+        var matches = GetMatchesFromUsersLastMatchData(USERS, data);
+
+        for (var i=0; i<matches.length; ++i) {
+            var currentMatch = matches[i];
+            var usersInMatch = matches[i].users_in_match;
+
+            if (usersInMatch.length == 0) {
+                continue;
             }
 
-            // if no match are saved
-            if (!user.last_match) {
-                // save the match
-                user.last_match = data;
-                // but do nothing more
-                // -> avoid spamming when launching the bot
-                return;
+            var firstUserInMatch = USERS[usersInMatch[0]];
+
+            // if the data has already been updated
+            if (firstUserInMatch.last_match != null && firstUserInMatch.last_match.match_id == currentMatch.match_id) {
+                // skip this match
+                continue;
             }
 
-            // if a new match is available
-            if (user.last_match.match_id != data.match_id) {
-                // update with the new match
-                user.last_match = data;
+            // update users last match data
+            for (var j=0; j<usersInMatch.length; ++j) {
+                var currentUser = USERS[usersInMatch[j]];
+
+                if (currentUser.last_match == null || currentUser.last_match.match_id != currentMatch.match_id) {
+                    currentUser.last_match = currentMatch;
+                }
+            }
+
+            if (isAllowedToSendMessage) {
                 // send the message
-                RTM.sendMessage(CreateMessageUserLastMatch(user), CHANNELS[BOT_CHANNEL]);
+                RTM.sendMessage(CreateMessageUsersLastMatch(USERS, usersInMatch), CHANNELS[BOT_CHANNEL]);
             }
-        });
+        }
     });
 
     setTimeout(loopTheBot, BOT_REFRESH_TIME);
@@ -152,6 +170,28 @@ function HttpsGet(url, promise) {
     }).on('error', promise);
 }
 
+function GetDotaLastMatchForUsers_Recursive(users, index, data, promise) {
+    // if we get all users' data
+    if (index >= users.length) {
+        promise(null, data);
+    }
+    // otherwise, get recursively users' data
+    else {
+        GetDotaLastMatchForUserId(users[index].id, function(error, userData) {
+            if (error) {
+                promise(error);
+                return;
+            }
+
+            // store current user data
+            data.push(userData);
+
+            // get next user's data
+            GetDotaLastMatchForUsers_Recursive(users, (index + 1), data, promise);
+        });
+    }
+}
+
 function GetDotaLastMatchForUserId(userId, promise) {
     var url = "https://api.opendota.com/api/players/" + userId + "/matches?limit=1";
     HttpsGet(url, function(err, data) {
@@ -174,6 +214,33 @@ function GetDotaLastMatchForUserId(userId, promise) {
     });
 }
 
+function GetMatchesFromUsersLastMatchData(users, usersLastMatchData) {
+    var matches = [];
+
+    // for each user last match data
+    for (var i=0; i<usersLastMatchData.length; ++i) {
+        var currentUserLastMatchData = usersLastMatchData[i];
+
+        // check if the match has already been stored
+        var alreadyStored = false;
+        for (var j=0; j<matches.length; ++j) {
+            if (matches[j].match_id == currentUserLastMatchData.match_id) {
+                matches[j].users_in_match.push(i); // add the user
+                alreadyStored = true;
+                break;
+            }
+        }
+
+        if (alreadyStored == false) {
+            matches.push(currentUserLastMatchData);
+            matches[matches.length - 1].users_in_match = []; // create array for users in the match
+            matches[matches.length - 1].users_in_match.push(i);
+        }
+    }
+
+    return matches;
+}
+
 function CreateMessageUserLastMatch(user) {
     if (!user || !user.last_match) {
         return "";
@@ -182,6 +249,30 @@ function CreateMessageUserLastMatch(user) {
     var match = user.last_match;
     var gameUrl = "https://www.opendota.com/matches/" + match.match_id;
     return user.name + " " + (match.win ? "won" : "lost") + " a game: " + gameUrl;
+}
+
+function CreateMessageUsersLastMatch(users, usersInMatch) {
+    if (!usersInMatch || usersInMatch.length == 0) {
+        return "";
+    }
+
+    var match = users[usersInMatch[0]].last_match;
+    var gameUrl = "https://www.opendota.com/matches/" + match.match_id;
+    var txtUsers = "";
+    for (var i=0; i<usersInMatch.length; ++i) {
+        var currentUser = users[usersInMatch[i]];
+        if (i == 0) {
+            txtUsers += currentUser.name;
+        }
+        else if (i<(usersInMatch.length - 1)) {
+            txtUsers += ", " + currentUser.name;
+        }
+        else {
+            txtUsers += " and " + currentUser.name;
+        }
+    }
+
+    return txtUsers + " " + (match.win ? "won" : "lost") + " a game: " + gameUrl;
 }
 
 function ParseText(text) {
