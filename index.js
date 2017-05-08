@@ -20,7 +20,7 @@ env(__dirname + '/.env', {overwrite: true}); // get env variables
 
 /* ########################################################################## */
 
-const DEBUG = true;
+const DEBUG = false;
 
 const BOT_TOKEN = process.env.SLACK_TOKEN || '';;
 
