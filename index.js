@@ -26,7 +26,7 @@ const BOT_TOKEN = process.env.SLACK_TOKEN || '';;
 
 const BOT_REFRESH_TIME = 2 * 6 * 1000; // 2 minutes
 const BOT_CHANNEL_TEST = 'bot_test';
-const BOT_CHANNEL_PROD = 'general';
+const BOT_CHANNEL_PROD = 'dota-results';
 const BOT_CHANNEL = DEBUG ? BOT_CHANNEL_TEST : BOT_CHANNEL_PROD;
 
 /* ########################################################################## */
